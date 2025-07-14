@@ -67,18 +67,29 @@ def normalize_price(text):
     return int(re.sub(r"[^\d]", "", text))
 
 def extract_sku(name):
+    """
+    Extracts the last (rightmost) SKU-like block from a product name.
+    Criteria:
+    - At least 2 characters long
+    - Contains at least one letter (A-Z, case-insensitive)
+    - May contain letters, numbers, spaces, dashes (-), slashes (/), underscores (_), plus signs (+), and parentheses ((, ))
+    - Ignores RTL marks and extra whitespace
+    """
     if not name:
         return ""
-    upper_name = name.upper()
-    pattern = r'\b(?:[A-Z0-9]{1,10})(?:[ .\-_]{0,1}[A-Z0-9]{1,10}){0,2}\b'
-    matches = re.findall(pattern, upper_name)
-    for candidate in reversed(matches):
-        if any(c.isalpha() for c in candidate) and len(candidate.replace(" ", "")) >= 2:
-            return candidate.strip()
-    return ""
+    # Remove RTL marks and normalize whitespace
+    cleaned = re.sub(r'[\u200e\u200f\u202a-\u202e]', '', name)
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    # Regex: match blocks of allowed characters, at least 2 chars, at least one letter
+    pattern = r'([A-Za-z0-9 \-/_+()]{2,})'
+    matches = re.findall(pattern, cleaned)
+    # Filter: must contain at least one letter
+    matches = [m.strip() for m in matches if re.search(r'[A-Za-z]', m)]
+    return matches[-1] if matches else ""
 
 def normalize_sku(sku):
-    return re.sub(r'[-_\s]', '', sku).lower() if sku else ""
+    # Remove all separators and lowercase
+    return re.sub(r'[\-_/\\\.\(\)\s]', '', sku).lower() if sku else ""
 
 # === Start Scraping ===
 print("🚀 Starting Raneen Scraper")
