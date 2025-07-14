@@ -19,6 +19,7 @@ options = Options()
 options.add_argument('--headless=new')
 options.add_argument('--disable-gpu')
 options.add_argument('--window-size=1920,1080')
+options.add_argument('--lang=ar')
 driver = webdriver.Chrome(options=options)
 wait = WebDriverWait(driver, 10)
 
@@ -67,16 +68,22 @@ def normalize_price(price_text):
 def extract_sku(name):
     if not name:
         return ""
-    upper_name = name.upper()
-    pattern = r'\b(?:[A-Z0-9]{1,10})(?:[ .\-_]{0,1}[A-Z0-9]{1,10}){0,2}\b'
-    matches = re.findall(pattern, upper_name)
-    for candidate in reversed(matches):
-        if any(c.isalpha() for c in candidate) and len(candidate.replace(" ", "")) >= 2:
-            return candidate.strip()
-    return ""
+
+    name = name.upper().replace("\u200f", "")  # remove RTL char
+
+    # Regex: match blocks of 3+ alphanum (optionally separated by space, dash, plus), at end or after dash
+    pattern = r'(?:-\s*)?([A-Z0-9][A-Z0-9\s\+\-]{2,})$'
+    matches = re.findall(pattern, name)
+    # Fallback: also match any block of 3+ alphanum (with optional spaces/pluses/dashes)
+    if not matches:
+        pattern2 = r'([A-Z0-9][A-Z0-9\s\+\-]{2,})'
+        matches = re.findall(pattern2, name)
+    # Filter: must have at least 1 letter and at least 3 chars
+    candidates = [m.strip() for m in matches if any(c.isalpha() for c in m) and len(m.strip()) >= 3]
+    return candidates[-1] if candidates else ""
 
 def normalize_sku(sku):
-    return re.sub(r'[-_\s]', '', sku).lower() if sku else ""
+    return re.sub(r'[^a-zA-Z0-9]', '', sku).lower() if sku else ""
 
 def extract_total_expected_products(driver):
     try:
